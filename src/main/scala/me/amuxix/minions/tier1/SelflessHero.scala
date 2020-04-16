@@ -3,10 +3,10 @@ package me.amuxix.minions.tier1
 import java.util.UUID
 
 import cats.data.NonEmptyList
-import me.amuxix.{Battlefield, Named}
+import me.amuxix.{Battlefield, Named, Team}
 import me.amuxix.minions.Minion
 import me.amuxix.minions.races.Beast
-import me.amuxix.minions.traits.LeavesBattlefieldTrigger
+import me.amuxix.minions.traits.{LeavesBattlefieldTrigger, TargetedDeathrattle}
 
 object SelflessHero extends Named
 
@@ -14,7 +14,7 @@ case class SelflessHero(
   damage: Int = Minion.defaultDamage(SelflessHero.name),
   hp: Int = Minion.defaultHp(SelflessHero.name),
   override val hasTaunt: Boolean = false,
-  override val hasDivineShield: Boolean =  Minion.defaultDivineShield.contains(SelflessHero.name),
+  override val hasDivineShield: Boolean = Minion.defaultDivineShield.contains(SelflessHero.name),
   override val hasWindFury: Boolean = false,
   override val hasReborn: Boolean = false,
   override val hasPoison: Boolean = false,
@@ -22,30 +22,29 @@ case class SelflessHero(
   override val lastAttacker: Option[Minion] = None,
   override val isGolden: Boolean = false,
 ) extends Minion
-  with LeavesBattlefieldTrigger {
+    with TargetedDeathrattle {
   override type T = SelflessHero
 
   override def create(t: (Int, Int, Boolean, Boolean, Boolean, Boolean, Boolean, UUID, Option[Minion], Boolean)): T =
     (SelflessHero.apply _).tupled(t)
 
+  private def minionRequirement(minion: Minion): Boolean = minion.hp > 0 && !minion.hasDivineShield
+
   /**
-   * Trigger that does something after anything leaves the battlefield
-   *
-   * @param deadMinion The minion that just left the battlefield
-   * @return The possible battlefields after effects have been applied
-   */
-  override def leavesBattlefieldTrigger(battlefield: Battlefield, deadMinion: Minion): NonEmptyList[Battlefield] = {
-    lazy val (alliedTeam, _) = battlefield.teams(this)
+    * Requirement for this trigger to activate
+    */
+  override def requirement(battlefield: Battlefield, deadMinion: Minion, alliedTeam: Team, enemyTeam: Team): Boolean =
+    alliedTeam.minions.exists(minionRequirement)
 
-    //Requirement for this trigger to activate
-    def requirement(minion: Minion): Boolean = minion.hp > 0 && !minion.hasDivineShield
-
-    if (deadMinion.uuid == this.uuid && alliedTeam.minions.exists(requirement)) {
-      battlefield.modifyMultipleTeamMinions(
-        deadMinion.side, deadMinion.goldenMultiplier, requirement
-      )(_.copy(hasDivineShield = true))
-    } else {
-      battlefield.nel
-    }
-  }
+  override def deathrattleTrigger(
+    battlefield: Battlefield,
+    deadMinion: Minion,
+    alliedTeam: Team,
+    enemyTeam: Team
+  ): NonEmptyList[Battlefield] =
+    battlefield.modifyMultipleTeamMinions(
+      deadMinion.side,
+      deadMinion.goldenMultiplier,
+      minionRequirement
+    )(_.copy(hasDivineShield = true))
 }

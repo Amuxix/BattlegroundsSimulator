@@ -62,13 +62,7 @@ case class Battlefield(teamA: Team, teamB: Team, lastAttackingSide: Option[Side]
   def modifyMinionWhen(condition: Boolean)(minion: Minion)(f: Minion => Minion): Battlefield =
     when(condition)(modifyMinion(minion)(f))
 
-  def modifyMultipleTeamMinions(
-    side: Side,
-    amount: Int,
-    filter: Minion => Boolean
-  )(
-    f: Minion => Minion
-  ): NonEmptyList[Battlefield] = {
+  def modifyMultipleTeamMinions(side: Side, amount: Int, filter: Minion => Boolean)(f: Minion => Minion): NonEmptyList[Battlefield] =
     if (side == A) {
       teamA.modifyMultipleMinions(amount, filter)(f).map { team =>
         copy(teamA = team)
@@ -78,7 +72,6 @@ case class Battlefield(teamA: Team, teamB: Team, lastAttackingSide: Option[Side]
         copy(teamB = team)
       }
     }
-  }
 
   def modifyAllTeamMinions(side: Side)(f: Minion => Minion): Battlefield =
     modifyTeam(side)(_.modifyAllMinions(f))
@@ -86,11 +79,23 @@ case class Battlefield(teamA: Team, teamB: Team, lastAttackingSide: Option[Side]
   def modifyAllTeamMinionsWhen(condition: Boolean)(side: Side)(f: Minion => Minion): Battlefield =
     when(condition)(modifyAllTeamMinions(side)(f))
 
+  def modifySomeTeamMinions(side: Side)(pf: PartialFunction[Minion, Minion]): Battlefield =
+    modifyTeam(side)(_.modifySomeMinions(pf))
+
+  def modifySomeTeamMinionsWhen(condition: Boolean)(side: Side)(pf: PartialFunction[Minion, Minion]): Battlefield =
+    when(condition)(modifySomeTeamMinions(side)(pf))
+
   def modifyAllMinions(f: Minion => Minion): Battlefield =
     copy(teamA = teamA.modifyAllMinions(f), teamB = teamB.modifyAllMinions(f))
 
   def modifyAllMinionsWhen(condition: Boolean)(f: Minion => Minion): Battlefield =
     when(condition)(modifyAllMinions(f))
+
+  def modifySomeMinions(pf: PartialFunction[Minion, Minion]): Battlefield =
+    copy(teamA = teamA.modifySomeMinions(pf), teamB = teamB.modifySomeMinions(pf))
+
+  def modifySomeMinionsWhen(condition: Boolean)(pf: PartialFunction[Minion, Minion]): Battlefield =
+    when(condition)(modifySomeMinions(pf))
 
   private lazy val isSettled: Boolean =
     teamA.size == 0 || teamB.size == 0 || allMinions.forall(_.damage <= 0)

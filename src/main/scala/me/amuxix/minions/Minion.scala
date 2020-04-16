@@ -138,6 +138,8 @@ abstract class Minion extends Printer[Minion] with Named {
     }
   }
 
+  def isAdjacent(minion: Minion): Boolean = math.abs(this.id - minion.id) == 1
+
   //This is implemented by classes that extend Minion since they are case classes
   def canEqual(other: Any): Boolean
 

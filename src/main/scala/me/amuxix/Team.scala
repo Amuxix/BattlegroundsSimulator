@@ -37,7 +37,7 @@ object Team {
   }
 }
 
-class Team private(
+class Team private (
   val side: Side,
   val hero: Option[Hero],
   val minions: List[Minion],
@@ -73,20 +73,20 @@ class Team private(
   def modifyAllMinions(f: Minion => Minion): Team =
     withMinions(minions.map(f))
 
+  def modifySomeMinions(f: PartialFunction[Minion, Minion]): Team =
+    modifyAllMinions(f.applyOrElse(_, identity(_)))
+
   /**
-   * Applies the function f to the minion on this team that shares a uuid of the given minion
-   *
-   * @param m Minion whos uuid we will look for
-   * @param f function that modifies a minion
-   * @return The team with the now modified minion
-   */
+    * Applies the function f to the minion on this team that shares a uuid of the given minion
+    *
+    * @param m Minion whos uuid we will look for
+    * @param f function that modifies a minion
+    * @return The team with the now modified minion
+    */
   def modifyMinion(m: Minion)(f: Minion => Minion): Team =
-    withMinions(
-      minions.map {
-        case minion if minion.uuid == m.uuid => f(minion)
-        case minion                          => minion
-      }
-    )
+    modifySomeMinions {
+      case minion if minion.uuid == m.uuid => f(minion)
+    }
 
   def modifyMultipleMinions(amount: Int, filter: Minion => Boolean)(f: Minion => Minion): NonEmptyList[Team] = {
     val possibleMinions = minions.collect {
@@ -99,14 +99,14 @@ class Team private(
             case minion if possibleMinions.contains(minion.uuid) => modifyMinion(minion)(f)
           }
         } else {
-          possibleMinions.combinations(amount).map { minionsToModify =>
-            withMinions {
-              minions.map {
+          possibleMinions
+            .combinations(amount)
+            .map { minionsToModify =>
+              modifySomeMinions {
                 case minion if minionsToModify.contains(minion.uuid) => f(minion)
-                case minion                                          => minion
               }
             }
-          }.toList
+            .toList
         }
       )
     } else {
@@ -156,23 +156,23 @@ class Team private(
 
   lazy val reviveMinionsWithReborn: Team =
     withMinions(minions.map {
-      case minion if minion.hp <= 0 && minion.hasReborn => minion.copy(
-        hp = 1,
-        damage = Minion.defaultDamage(minion.name) * minion.goldenMultiplier,
-        hasDivineShield = Minion.defaultDivineShield.contains(minion.name),
-        hasReborn = false
-      )
-      case minion                                       => minion
-    }
-    )
+      case minion if minion.hp <= 0 && minion.hasReborn =>
+        minion.copy(
+          hp = 1,
+          damage = Minion.defaultDamage(minion.name) * minion.goldenMultiplier,
+          hasDivineShield = Minion.defaultDivineShield.contains(minion.name),
+          hasReborn = false
+        )
+      case minion => minion
+    })
 
   lazy val possibleTargets: NonEmptyList[Minion] = NonEmptyList.fromListUnsafe(if (hasTaunts) taunts else minions)
 
   /**
-   * Calculates the possible outcomes from this team attacking the opposing team on the battlefield
-   *
-   * @return List of possible battlefields states after the damage is dealt but before triggers
-   */
+    * Calculates the possible outcomes from this team attacking the opposing team on the battlefield
+    *
+    * @return List of possible battlefields states after the damage is dealt but before triggers
+    */
   def attack(battlefield: Battlefield): NonEmptyList[Battlefield] = {
     val attackingMinion = nextAttackingMinion.getOrElse(
       throw new Exception(s"Trying to attack but no minions left! Team $side\n${battlefield.prettyPrint()}")
@@ -182,22 +182,22 @@ class Team private(
   }
 
   /**
-   * Inserts the maximum amount of minions from the given list into this team,
-   * may not insert all minions if team becomes full.
-   *
-   * @param id Where in the team should minions be inserted
-   */
+    * Inserts the maximum amount of minions from the given list into this team,
+    * may not insert all minions if team becomes full.
+    *
+    * @param id Where in the team should minions be inserted
+    */
   def insertMax(id: Int, minions: List[Minion]): Team = {
     val (front, back) = this.minions.splitAt(id)
     withMinions(front ++ minions.take(7 - size) ++ back)
   }
 
   /**
-   * This assumes the given team contains all minions of this team, if this is not true,
-   * minions in this team that are not in the given team will not be in the returned list.
-   *
-   * @return A list of new minions from the given team that don't exist in this team.
-   */
+    * This assumes the given team contains all minions of this team, if this is not true,
+    * minions in this team that are not in the given team will not be in the returned list.
+    *
+    * @return A list of new minions from the given team that don't exist in this team.
+    */
   def newMinions(team: Team): List[Minion] = {
     val minionsMap = team.minions.map(a => (a.uuid, a)).toMap
     val keys = minionsMap.keySet -- minions.map(_.uuid)
@@ -213,7 +213,7 @@ class Team private(
         hero == that.hero &&
         minions == that.minions &&
         minionsThatAttacked == that.minionsThatAttacked
-    case _          => false
+    case _ => false
   }
 
   override def hashCode(): Int = {

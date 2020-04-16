@@ -1,8 +1,9 @@
-package me.amuxix.minions
+package me.amuxix.minions.traits
+
 import cats.data.NonEmptyList
+import me.amuxix.minions.Minion
 import me.amuxix.minions.tier3.Khadgar
 import me.amuxix.{Battlefield, Team}
-import me.amuxix.minions.traits.LeavesBattlefieldTrigger
 
 trait TokenSpawner extends LeavesBattlefieldTrigger { this: Minion =>
   def spawnedTokens: List[Minion]
